@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+class DevBox
+  attr_reader :url, :repo
+  def initialize(url, repo)
+    @url, @repo = url, repo
+  end
+
+  def call
+    puts "Starting DevBox:"
+    puts "\tURL:  #{url}"
+    puts "\tRepo: #{repo}"
+  end
+end
+
+DevBox.new(ARGV[0], ARGV[1]).call
