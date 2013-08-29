@@ -1,16 +1,53 @@
 #!/usr/bin/env ruby
 
+require 'bundler'
+Bundler.require
+
 class DevBox
-  attr_reader :url, :repo
-  def initialize(url, repo)
-    @url, @repo = url, repo
+  attr_reader :ssh_url, :repo
+  def initialize(ssh_url, repo)
+    @ssh_url, @repo = URI.parse(ssh_url), repo
   end
 
   def call
     puts "Starting DevBox:"
-    puts "\tURL:  #{url}"
+    puts "\t SSH URL:  #{ssh_url}"
     puts "\tRepo: #{repo}"
+
+    upload_keys
+
+    clone_repo
   end
+
+  def ssh_options
+    { password: ssh_url.password, port: ssh_url.port }
+  end
+
+  def private_key_path
+    File.expand_path('~/.ssh/cloud_rsa')
+  end
+
+  def public_key_path
+    private_key_path + '.pub'
+  end
+
+  def upload_keys
+    Net::SCP.upload!(ssh_url.host, ssh_url.user, private_key_path, ".ssh/id_rsa", ssh: ssh_options)
+    Net::SCP.upload!(ssh_url.host, ssh_url.user, public_key_path, ".ssh/id_rsa.pub", ssh: ssh_options)
+  end
+
+  def clone_repo
+    Net::SSH.start(ssh_url.host, ssh_url.user, ssh_options) do |ssh|
+      repo_name = File.basename(repo, '.*')
+      puts repo_name
+
+      puts ssh.exec!("git clone #{repo}")
+
+      puts ssh.exec!("source .rvm/scripts/rvm; cd #{repo_name}; rvm install $(cat .ruby-version); bundle")
+    end
+  end
+
 end
 
 DevBox.new(ARGV[0], ARGV[1]).call
+
